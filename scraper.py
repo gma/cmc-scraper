@@ -1,3 +1,5 @@
+import urllib
+
 import bs4
 import pandas
 
@@ -10,11 +12,40 @@ def attr(name):
     return lambda tag: tag[name]
 
 
-def extract_exchanges(html):
+def get_table_headings_and_contents(html, table_id):
     parser = bs4.BeautifulSoup(html, features='html.parser')
-    cells = []
+    table = parser.select(table_id)[0]
+    heading_row, *content_rows = table('tr')
+    return heading_row, content_rows
 
-    table = parser.select('#exchange-rankings')[0]
+
+def column_numbers(columns):
+    return [number for number, reader in columns]
+
+
+def get_column_headings(columns, heading_row):
+    th_selector = nth_css_selectors('th', column_numbers(columns))
+    th_tags = heading_row.select(th_selector)
+    return [th_tag.text for th_tag in th_tags] 
+
+
+def get_column_values(columns, row):
+    def read_tag(i, tag):
+        return columns[i][1](tag)
+
+    td_tags = row.select(nth_css_selectors('td', column_numbers(columns)))
+    return [read_tag(i, td_tag) for i, td_tag in enumerate(td_tags)]
+
+
+def get_data_frame(columns, heading_row, content_rows):
+    headings = get_column_headings(columns, heading_row)
+    data = [get_column_values(columns, row) for row in content_rows]
+    return pandas.DataFrame(data, columns=headings)
+
+
+def extract_exchanges(html):
+    table_id = '#exchange-rankings'
+    heading_row, content_rows = get_table_headings_and_contents(html, table_id)
 
     columns = [
         (2, attr('data-sort')),
@@ -26,26 +57,28 @@ def extract_exchanges(html):
         (10, attr('data-sort')),
     ]
 
-    column_numbers = [number for number, reader in columns]
+    return get_data_frame(columns, heading_row, content_rows)
 
-    heading_row, *content_rows = table('tr')
 
-    # Extract column headings
-    th_tags = heading_row.select(nth_css_selectors('th', column_numbers))
-    headings = [th_tag.text for th_tag in th_tags]
+def extract_coin(html):
+    table_id = '#exchange-markets'
+    heading_row, content_rows = get_table_headings_and_contents(html, table_id)
 
-    # Extract contents of table
-    def read_tag(i, tag):
-        return columns[i][1](tag)
-
-    data = []
-    for row in content_rows:
-        td_tags = row.select(nth_css_selectors('td', column_numbers))
-        data.append([read_tag(i, td_tag) for i, td_tag in enumerate(td_tags)])
-
-    return pandas.DataFrame(data, columns=headings)
+    columns = [
+        (2, attr('data-sort')),
+    ]
 
 
 if __name__ == '__main__':
-    with open('exchanges.html') as f:
-        print(extract_exchanges(f.read()))
+    url = 'https://coinmarketcap.com/rankings/exchanges/'
+    with urllib.request.urlopen(url) as response:
+        print(extract_exchanges(response.read()))
+
+    exchanges = ['binance']
+    url_template = 'https://coinmarketcap.com/exchanges/%s/#markets'
+    pages = dict([(exchange, url_template % exchange) for exchange in exchanges])
+    for exchange, url in pages.items():
+        with urllib.request.urlopen(url) as response:
+            print(extract_coin(response.read()))
+            print()
+            print('--- Coins for %s ---' % exchange)
