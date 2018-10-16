@@ -48,11 +48,14 @@ def get_data_frame(columns, heading_row, content_rows):
     return pandas.DataFrame(data, columns=headings)
 
 
-def extract_exchanges(html):
-    table_id = '#exchange-rankings'
+def parse_page(html, page_name, table_id):
+    columns = PAGE_COLUMNS[page_name]
     heading_row, content_rows = get_table_headings_and_contents(html, table_id)
+    return get_data_frame(columns, heading_row, content_rows)
 
-    columns = [
+
+PAGE_COLUMNS = {
+    'exchanges': [
         ('Name', 2, attr('data-sort')),
         ('Adj. Vol (24h)', 3, attr('data-sort')),
         ('Volume (24h)', 4, attr('data-sort')),
@@ -60,36 +63,27 @@ def extract_exchanges(html):
         ('Volume (30d)', 6, attr('data-sort')),
         ('No. Markets', 7, attr('data-sort')),
         ('Change (24h)', 10, attr('data-sort')),
-    ]
-
-    return get_data_frame(columns, heading_row, content_rows)
-
-
-def extract_coin(html):
-    table_id = '#exchange-markets'
-    heading_row, content_rows = get_table_headings_and_contents(html, table_id)
-
-    columns = [
+    ],
+    'exchange_coins': [
         ('Currency', 2, attr('data-sort')),
         ('Pair', 3, attr('data-sort')),
         ('Volume (24h)', 4, child('span', 'data-btc')),
         ('Price', 5, attr('data-sort')),
         ('Volume (%)', 6, attr('data-sort')),
     ]
-
-    return get_data_frame(columns, heading_row, content_rows)
+}
 
 
 if __name__ == '__main__':
     url = 'https://coinmarketcap.com/rankings/exchanges/'
     with urllib.request.urlopen(url) as response:
-        print(extract_exchanges(response.read()))
+        print(parse_page(response.read(), 'exchanges', '#exchange-rankings'))
 
     exchanges = ['binance']
     url_template = 'https://coinmarketcap.com/exchanges/%s/#markets'
     pages = dict([(exchange, url_template % exchange) for exchange in exchanges])
     for exchange, url in pages.items():
         with urllib.request.urlopen(url) as response:
-            print(extract_coin(response.read()))
             print()
             print('--- Coins for %s ---' % exchange)
+            print(parse_page(response.read(), 'exchange_coins', '#exchange-markets'))
