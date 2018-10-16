@@ -12,6 +12,10 @@ def attr(name):
     return lambda tag: tag[name]
 
 
+def child(tag_name, attr_name):
+    return lambda tag: getattr(tag, tag_name)[attr_name]
+
+
 def get_table_headings_and_contents(html, table_id):
     parser = bs4.BeautifulSoup(html, features='html.parser')
     table = parser.select(table_id)[0]
@@ -66,7 +70,13 @@ def extract_coin(html):
 
     columns = [
         (2, attr('data-sort')),
+        (3, attr('data-sort')),
+        (4, child('span', 'data-btc')),
+        (5, attr('data-sort')),
+        (6, attr('data-sort')),
     ]
+
+    return get_data_frame(columns, heading_row, content_rows)
 
 
 if __name__ == '__main__':
