@@ -24,7 +24,7 @@ def get_table_headings_and_contents(html, table_id):
 
 
 def column_numbers(columns):
-    return [number for number, reader in columns]
+    return [number for heading, number, reader in columns]
 
 
 def get_column_headings(columns, heading_row):
@@ -35,7 +35,8 @@ def get_column_headings(columns, heading_row):
 
 def get_column_values(columns, row):
     def read_tag(i, tag):
-        return columns[i][1](tag)
+        heading, number, reader = columns[i]
+        return reader(tag)
 
     td_tags = row.select(nth_css_selectors('td', column_numbers(columns)))
     return [read_tag(i, td_tag) for i, td_tag in enumerate(td_tags)]
@@ -52,13 +53,13 @@ def extract_exchanges(html):
     heading_row, content_rows = get_table_headings_and_contents(html, table_id)
 
     columns = [
-        (2, attr('data-sort')),
-        (3, attr('data-sort')),
-        (4, attr('data-sort')),
-        (5, attr('data-sort')),
-        (6, attr('data-sort')),
-        (7, attr('data-sort')),
-        (10, attr('data-sort')),
+        ('Name', 2, attr('data-sort')),
+        ('Adj. Vol (24h)', 3, attr('data-sort')),
+        ('Volume (24h)', 4, attr('data-sort')),
+        ('Volume (7d)', 5, attr('data-sort')),
+        ('Volume (30d)', 6, attr('data-sort')),
+        ('No. Markets', 7, attr('data-sort')),
+        ('Change (24h)', 10, attr('data-sort')),
     ]
 
     return get_data_frame(columns, heading_row, content_rows)
@@ -69,11 +70,11 @@ def extract_coin(html):
     heading_row, content_rows = get_table_headings_and_contents(html, table_id)
 
     columns = [
-        (2, attr('data-sort')),
-        (3, attr('data-sort')),
-        (4, child('span', 'data-btc')),
-        (5, attr('data-sort')),
-        (6, attr('data-sort')),
+        ('Currency', 2, attr('data-sort')),
+        ('Pair', 3, attr('data-sort')),
+        ('Volume (24h)', 4, child('span', 'data-btc')),
+        ('Price', 5, attr('data-sort')),
+        ('Volume (%)', 6, attr('data-sort')),
     ]
 
     return get_data_frame(columns, heading_row, content_rows)
